@@ -214,10 +214,6 @@ const Library = () => {
               <option value="size-desc">Largest First</option>
               <option value="size-asc">Smallest First</option>
             </select>
-
-            <button type="submit" className="btn-brutal-black px-6">
-              <Filter size={20} />
-            </button>
           </div>
         </form>
       </div>
