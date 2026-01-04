@@ -151,16 +151,6 @@ Assignment PulseGen/
 | **Editor** | Upload, edit, delete own videos |
 | **Admin**  | Full access + user management   |
 
-## 🎨 Neo-Brutalist Design
-
-The UI features a bold neo-brutalist aesthetic:
-
-- **4px black borders** on all elements
-- **Offset shadows** (no blur)
-- **Yellow (#FACC15)** primary color
-- **Pink (#EC4899)** accent color
-- **Lime (#84CC16)** for success states
-- **Red (#EF4444)** for warnings/flagged content
 
 ## 🔍 Sensitivity Analysis
 
