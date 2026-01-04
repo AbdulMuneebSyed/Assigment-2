@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Zap, Eye, EyeOff, Loader } from "lucide-react";
+import { Eye, EyeOff, Loader } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -34,7 +34,7 @@ const Login = () => {
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-14 h-14 bg-brutal-yellow flex items-center justify-center border-4 border-brutal-black shadow-brutal">
-            <Zap className="text-brutal-black" size={32} />
+            <img src="/icon.png" alt="PulseGen" className="w-10 h-10" />
           </div>
           <div>
             <h1 className="font-black text-3xl tracking-tight">PULSEGEN</h1>

@@ -8,7 +8,6 @@ import {
   LogOut,
   Users,
   Shield,
-  Zap,
   Menu,
   X,
 } from "lucide-react";
@@ -51,8 +50,12 @@ const Sidebar = () => {
       {/* Logo */}
       <div className="p-6 border-b-4 border-brutal-yellow">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-brutal-yellow flex items-center justify-center border-3 border-white">
-            <Zap className="text-brutal-black" size={24} />
+          <div className="w-10 h-10 flex items-center justify-center">
+            <img
+              src="/icon.png"
+              alt="PulseGen"
+              className="w-10 h-10 object-fill"
+            />
           </div>
           <div>
             <h1 className="font-black text-xl tracking-tight">PULSEGEN</h1>

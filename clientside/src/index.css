@@ -26,7 +26,7 @@
 @layer components {
   /* Brutal Button */
   .btn-brutal {
-    @apply px-6 py-3 bg-brutal-yellow border-4 border-brutal-black font-bold uppercase tracking-wide;
+    @apply px-6 py-3 bg-brutal-yellow border-2 border-brutal-black font-bold uppercase tracking-wide;
     @apply shadow-brutal transition-all duration-150 ease-out;
     @apply hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-brutal-sm;
     @apply active:translate-x-[4px] active:translate-y-[4px] active:shadow-none;
@@ -54,27 +54,27 @@
   }
 
   .btn-brutal-outline {
-    @apply px-6 py-3 bg-transparent border-4 border-brutal-black font-bold uppercase tracking-wide;
+    @apply px-6 py-3 bg-transparent border-2 border-brutal-black font-bold uppercase tracking-wide;
     @apply transition-all duration-150 ease-out;
     @apply hover:bg-brutal-black hover:text-white;
   }
 
   /* Brutal Card */
   .card-brutal {
-    @apply bg-white border-4 border-brutal-black shadow-brutal p-6;
+    @apply bg-white border-2 border-brutal-black shadow-brutal p-6;
   }
 
   .card-brutal-sm {
-    @apply bg-white border-3 border-brutal-black shadow-brutal-sm p-4;
+    @apply bg-white border-2 border-brutal-black shadow-brutal-sm p-4;
   }
 
   .card-brutal-lg {
-    @apply bg-white border-4 border-brutal-black shadow-brutal-lg p-8;
+    @apply bg-white border-2 border-brutal-black shadow-brutal-lg p-8;
   }
 
   /* Brutal Input */
   .input-brutal {
-    @apply w-full px-4 py-3 bg-white border-4 border-brutal-black;
+    @apply w-full px-4 py-3 bg-white border-2 border-brutal-black;
     @apply font-medium placeholder:text-gray-400;
     @apply focus:outline-none focus:ring-4 focus:ring-brutal-yellow focus:ring-offset-0;
     @apply transition-all duration-150;
@@ -86,7 +86,7 @@
 
   /* Brutal Badge */
   .badge-brutal {
-    @apply inline-flex items-center px-3 py-1 border-3 border-brutal-black font-bold text-sm uppercase;
+    @apply inline-flex items-center px-3 py-1 border-2 border-brutal-black font-bold text-sm uppercase;
   }
 
   .badge-safe {
@@ -107,7 +107,7 @@
 
   /* Brutal Progress Bar */
   .progress-brutal {
-    @apply w-full h-6 bg-white border-4 border-brutal-black overflow-hidden;
+    @apply w-full h-6 bg-white border-2 border-brutal-black overflow-hidden;
   }
 
   .progress-brutal-bar {
@@ -117,12 +117,12 @@
   /* Brutal Sidebar */
   .sidebar-brutal {
     @apply fixed left-0 top-0 h-screen w-64 bg-brutal-black text-white;
-    @apply flex flex-col border-r-4 border-brutal-black;
+    @apply flex flex-col border-r-2 border-brutal-black;
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 px-6 py-4 font-medium uppercase tracking-wide;
-    @apply border-b-2 border-gray-800 transition-all duration-150;
+    @apply flex items-center gap-3 px-4 py-3 font-medium uppercase tracking-wide mx-2 my-1;
+    @apply transition-all duration-150;
     @apply hover:bg-brutal-yellow hover:text-brutal-black;
   }
 
@@ -132,7 +132,7 @@
 
   /* Brutal Select */
   .select-brutal {
-    @apply w-full px-4 py-3 bg-white border-4 border-brutal-black;
+    @apply w-full px-4 py-3 bg-white border-2 border-brutal-black;
     @apply font-medium appearance-none cursor-pointer;
     @apply focus:outline-none focus:ring-4 focus:ring-brutal-yellow;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23000000' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
@@ -143,11 +143,11 @@
 
   /* Brutal Table */
   .table-brutal {
-    @apply w-full border-4 border-brutal-black bg-white;
+    @apply w-full border-2 border-brutal-black bg-white overflow-hidden;
   }
 
   .table-brutal th {
-    @apply px-4 py-3 text-left font-bold uppercase tracking-wide bg-brutal-yellow border-b-4 border-brutal-black;
+    @apply px-4 py-3 text-left font-bold uppercase tracking-wide bg-brutal-yellow border-b-2 border-brutal-black;
   }
 
   .table-brutal td {
@@ -160,7 +160,7 @@
 
   /* Drag and Drop Zone */
   .dropzone-brutal {
-    @apply border-4 border-dashed border-brutal-black bg-white p-12;
+    @apply border-2 border-dashed border-brutal-black bg-white p-12;
     @apply flex flex-col items-center justify-center text-center;
     @apply transition-all duration-150 cursor-pointer;
     @apply hover:bg-brutal-yellow hover:border-solid;
@@ -176,7 +176,7 @@
   }
 
   .video-card-brutal-thumbnail {
-    @apply w-full h-40 bg-gray-200 border-b-4 border-brutal-black object-cover;
+    @apply w-full h-40 bg-gray-200 border-b-2 border-brutal-black object-cover;
   }
 
   .video-card-brutal-content {
@@ -205,7 +205,7 @@
 
 ::-webkit-scrollbar-track {
   background: #fafaf9;
-  border-left: 4px solid #000000;
+  border-left: 2px solid #000000;
 }
 
 ::-webkit-scrollbar-thumb {

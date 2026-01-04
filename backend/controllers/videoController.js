@@ -1,8 +1,17 @@
 const Video = require("../models/Video");
 const { analyzeVideo } = require("../services/sensitivityAnalyzer");
+const s3Service = require("../services/s3Service");
+const cacheService = require("../services/cacheService");
+const { TTL } = require("../config/redis");
+const mongoose = require("mongoose");
+const {
+  generateVideoKey,
+  generateVideoStreamKey,
+  generateVideoListKey,
+  generateVideoStatsKey,
+} = require("../middleware/cache");
 const path = require("path");
 const fs = require("fs");
-const { v4: uuidv4 } = require("uuid");
 
 /**
  * @desc    Upload a new video
@@ -20,21 +29,50 @@ const uploadVideo = async (req, res, next) => {
 
     const { title, description, category, tags } = req.body;
 
+    // Check storage mode
+    const storageMode = process.env.STORAGE_MODE || "s3";
+    let videoData = {};
+
+    if (storageMode === "s3") {
+      // Upload to S3
+      const s3Result = await s3Service.uploadFile(req.file, "videos");
+      videoData = {
+        title: title || req.file.originalname.replace(/\.[^/.]+$/, ""),
+        description: description || "",
+        filename: path.basename(s3Result.key),
+        originalName: req.file.originalname,
+        path: s3Result.key, // Store S3 key
+        s3Url: s3Result.url,
+        storageProvider: "s3",
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        owner: req.user._id,
+        organization: req.user.organization,
+        category: category || "uncategorized",
+        tags: tags ? tags.split(",").map((t) => t.trim()) : [],
+        processingStatus: "pending",
+      };
+    } else {
+      // Legacy local storage (for backward compatibility)
+      videoData = {
+        title: title || req.file.originalname.replace(/\.[^/.]+$/, ""),
+        description: description || "",
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        path: req.file.path,
+        storageProvider: "local",
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        owner: req.user._id,
+        organization: req.user.organization,
+        category: category || "uncategorized",
+        tags: tags ? tags.split(",").map((t) => t.trim()) : [],
+        processingStatus: "pending",
+      };
+    }
+
     // Create video record
-    const video = await Video.create({
-      title: title || req.file.originalname.replace(/\.[^/.]+$/, ""),
-      description: description || "",
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      path: req.file.path,
-      mimeType: req.file.mimetype,
-      size: req.file.size,
-      owner: req.user._id,
-      organization: req.user.organization,
-      category: category || "uncategorized",
-      tags: tags ? tags.split(",").map((t) => t.trim()) : [],
-      processingStatus: "pending",
-    });
+    const video = await Video.create(videoData);
 
     res.status(201).json({
       success: true,
@@ -49,9 +87,14 @@ const uploadVideo = async (req, res, next) => {
       );
     });
   } catch (error) {
-    // Clean up uploaded file on error
-    if (req.file && req.file.path) {
-      fs.unlink(req.file.path, () => {});
+    // Clean up on error
+    if (req.file) {
+      // If using local storage and file exists, delete it
+      if (req.file.path && fs.existsSync(req.file.path)) {
+        fs.unlink(req.file.path, () => {});
+      }
+      // If S3 upload was successful but DB creation failed, clean up S3
+      // (Note: This is a simplified version - production would need more robust error handling)
     }
     next(error);
   }
@@ -78,6 +121,11 @@ const getVideos = async (req, res, next) => {
       page = 1,
       limit = 12,
     } = req.query;
+
+    const userId =
+      req.user.role === "admin" && req.query.owner
+        ? req.query.owner
+        : req.user._id.toString();
 
     // Build query
     const query = {};
@@ -137,64 +185,99 @@ const getVideos = async (req, res, next) => {
     // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Execute query
-    const videos = await Video.find(query)
-      .populate("owner", "name email")
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(parseInt(limit));
+    // Execute queries in parallel
+    const promises = [
+      Video.find(query)
+        .populate("owner", "name email")
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Video.countDocuments(query),
+    ];
 
-    // Get total count
-    const total = await Video.countDocuments(query);
+    // Always fetch fresh stats
+    let statsOwnerId;
+    if (req.user.role === "admin" && req.query.owner) {
+      statsOwnerId = new mongoose.Types.ObjectId(req.query.owner);
+    } else {
+      statsOwnerId =
+        typeof req.user._id === "string"
+          ? new mongoose.Types.ObjectId(req.user._id)
+          : req.user._id;
+    }
 
-    // Get stats
-    const stats = await Video.aggregate([
-      { $match: { owner: req.user._id } },
-      {
-        $group: {
-          _id: null,
-          totalVideos: { $sum: 1 },
-          safeVideos: {
-            $sum: {
-              $cond: [{ $eq: ["$sensitivityResult.status", "safe"] }, 1, 0],
+    console.log(
+      "Stats Owner ID (fresh):",
+      statsOwnerId,
+      "Type:",
+      typeof statsOwnerId
+    );
+
+    promises.push(
+      Video.aggregate([
+        { $match: { owner: statsOwnerId } },
+        {
+          $group: {
+            _id: null,
+            totalVideos: { $sum: 1 },
+            safeVideos: {
+              $sum: {
+                $cond: [{ $eq: ["$sensitivityResult.status", "safe"] }, 1, 0],
+              },
             },
-          },
-          flaggedVideos: {
-            $sum: {
-              $cond: [{ $eq: ["$sensitivityResult.status", "flagged"] }, 1, 0],
+            flaggedVideos: {
+              $sum: {
+                $cond: [
+                  { $eq: ["$sensitivityResult.status", "flagged"] },
+                  1,
+                  0,
+                ],
+              },
             },
-          },
-          processingVideos: {
-            $sum: {
-              $cond: [
-                { $in: ["$processingStatus", ["pending", "processing"]] },
-                1,
-                0,
-              ],
+            processingVideos: {
+              $sum: {
+                $cond: [
+                  { $in: ["$processingStatus", ["pending", "processing"]] },
+                  1,
+                  0,
+                ],
+              },
             },
+            totalSize: { $sum: "$size" },
           },
-          totalSize: { $sum: "$size" },
         },
+      ])
+    );
+
+    const results = await Promise.all(promises);
+    const videos = results[0];
+    const total = results[1];
+    const stats = (results[2] && results[2][0]) || {
+      totalVideos: 0,
+      safeVideos: 0,
+      flaggedVideos: 0,
+      processingVideos: 0,
+      totalSize: 0,
+    };
+
+    // Cache only the list results (not stats)
+    const listData = {
+      videos,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
       },
-    ]);
+    };
 
     res.status(200).json({
       success: true,
       data: {
-        videos,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / parseInt(limit)),
-        },
-        stats: stats[0] || {
-          totalVideos: 0,
-          safeVideos: 0,
-          flaggedVideos: 0,
-          processingVideos: 0,
-          totalSize: 0,
-        },
+        videos: listData.videos,
+        pagination: listData.pagination,
+        stats,
       },
     });
   } catch (error) {
@@ -209,10 +292,12 @@ const getVideos = async (req, res, next) => {
  */
 const getVideo = async (req, res, next) => {
   try {
-    const video = await Video.findById(req.params.id).populate(
-      "owner",
-      "name email"
-    );
+    const videoId = req.params.id;
+
+    // Fetch from database
+    const video = await Video.findById(videoId)
+      .populate("owner", "name email")
+      .lean();
 
     if (!video) {
       return res.status(404).json({
@@ -248,7 +333,10 @@ const getVideo = async (req, res, next) => {
  */
 const streamVideo = async (req, res, next) => {
   try {
-    const video = await Video.findById(req.params.id);
+    const videoId = req.params.id;
+
+    // Fetch from database
+    const video = await Video.findById(videoId).lean();
 
     if (!video) {
       return res.status(404).json({
@@ -268,53 +356,64 @@ const streamVideo = async (req, res, next) => {
       });
     }
 
-    // Check if file exists
-    if (!fs.existsSync(video.path)) {
-      return res.status(404).json({
-        success: false,
-        message: "Video file not found",
-      });
-    }
+    // Increment view count using Redis counter (async, don't wait)
+    const viewCountKey = `video:${videoId}:views`;
+    cacheService.increment(viewCountKey).catch(() => {});
 
-    const stat = fs.statSync(video.path);
-    const fileSize = stat.size;
-    const range = req.headers.range;
+    // Check storage provider and handle accordingly
+    if (video.storageProvider === "s3") {
+      // Generate presigned URL for S3 videos
+      const presignedUrl = await s3Service.getPresignedUrl(video.path);
 
-    if (range) {
-      // Parse range header
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunkSize = end - start + 1;
-
-      const file = fs.createReadStream(video.path, { start, end });
-      const head = {
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunkSize,
-        "Content-Type": video.mimeType,
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Range",
-      };
-
-      res.writeHead(206, head);
-      file.pipe(res);
+      // Redirect to presigned URL (browser/video player will handle streaming)
+      return res.redirect(presignedUrl);
     } else {
-      // No range header - send entire file
-      const head = {
-        "Content-Length": fileSize,
-        "Content-Type": video.mimeType,
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-      };
+      // Legacy local file streaming
+      // Check if file exists
+      if (!fs.existsSync(video.path)) {
+        return res.status(404).json({
+          success: false,
+          message: "Video file not found",
+        });
+      }
 
-      res.writeHead(200, head);
-      fs.createReadStream(video.path).pipe(res);
+      const stat = fs.statSync(video.path);
+      const fileSize = stat.size;
+      const range = req.headers.range;
+
+      if (range) {
+        // Parse range header
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunkSize = end - start + 1;
+
+        const file = fs.createReadStream(video.path, { start, end });
+        const head = {
+          "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": chunkSize,
+          "Content-Type": video.mimeType,
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Range",
+        };
+
+        res.writeHead(206, head);
+        file.pipe(res);
+      } else {
+        // No range header - send entire file
+        const head = {
+          "Content-Length": fileSize,
+          "Content-Type": video.mimeType,
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+        };
+
+        res.writeHead(200, head);
+        fs.createReadStream(video.path).pipe(res);
+      }
     }
-
-    // Increment view count (async, don't wait)
-    video.incrementViews().catch(() => {});
   } catch (error) {
     next(error);
   }
@@ -361,6 +460,14 @@ const updateVideo = async (req, res, next) => {
       runValidators: true,
     }).populate("owner", "name email");
 
+    // Invalidate all related caches
+    const videoId = req.params.id;
+    const userId = video.owner._id.toString();
+    await Promise.all([
+      cacheService.delete(generateVideoKey(videoId)),
+      cacheService.delete(generateVideoStreamKey(videoId)),
+    ]);
+
     res.status(200).json({
       success: true,
       message: "Video updated successfully",
@@ -398,15 +505,35 @@ const deleteVideo = async (req, res, next) => {
       });
     }
 
-    // Delete file from storage
-    if (fs.existsSync(video.path)) {
-      fs.unlinkSync(video.path);
+    // Delete file from storage based on provider
+    if (video.storageProvider === "s3") {
+      // Delete from S3
+      try {
+        await s3Service.deleteFile(video.path);
+      } catch (err) {
+        console.error("S3 deletion error:", err);
+        // Continue with DB deletion even if S3 deletion fails
+      }
+    } else {
+      // Delete local file
+      if (fs.existsSync(video.path)) {
+        fs.unlinkSync(video.path);
+      }
     }
 
-    // Delete thumbnail if exists
+    // Delete thumbnail if exists (local only for now)
     if (video.thumbnail && fs.existsSync(video.thumbnail)) {
       fs.unlinkSync(video.thumbnail);
     }
+
+    // Invalidate all related caches before deletion
+    const videoId = video._id.toString();
+    const userId = video.owner.toString();
+    await Promise.all([
+      cacheService.delete(generateVideoKey(videoId)),
+      cacheService.delete(generateVideoStreamKey(videoId)),
+      cacheService.delete(`video:${videoId}:views`), // Clear view counter
+    ]);
 
     await video.deleteOne();
 
@@ -452,6 +579,14 @@ const reprocessVideo = async (req, res, next) => {
     video.currentStage = null;
     video.sensitivityResult = null;
     await video.save();
+
+    // Invalidate caches to reflect new processing status
+    const videoId = video._id.toString();
+    const userId = video.owner.toString();
+    await Promise.all([
+      cacheService.delete(generateVideoKey(videoId)),
+      cacheService.delete(generateVideoStreamKey(videoId)),
+    ]);
 
     res.status(200).json({
       success: true,

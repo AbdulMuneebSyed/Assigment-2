@@ -20,9 +20,13 @@ const videoRoutes = require("./routes/video");
 const adminRoutes = require("./routes/admin");
 const errorHandler = require("./middleware/errorHandler");
 const { initializeSocket } = require("./services/socketService");
+const { startViewCountSync } = require("./services/viewCountSync");
 
 // Connect to MongoDB
 connectDB();
+
+// Start Redis view count sync job (every 5 minutes)
+startViewCountSync(5);
 
 const app = express();
 const server = http.createServer(app);

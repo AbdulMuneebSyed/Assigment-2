@@ -52,6 +52,15 @@ const videoSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    s3Url: {
+      type: String,
+      default: null,
+    },
+    storageProvider: {
+      type: String,
+      enum: ["local", "s3"],
+      default: "local",
+    },
     mimeType: {
       type: String,
       required: true,

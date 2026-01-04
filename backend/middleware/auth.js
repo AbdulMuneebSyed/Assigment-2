@@ -1,5 +1,8 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const cacheService = require("../services/cacheService");
+const { TTL } = require("../config/redis");
+const { generateUserKey } = require("./cache");
 
 /**
  * Protect routes - Verify JWT token
@@ -25,16 +28,28 @@ const protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from token
-    req.user = await User.findById(decoded.id).select("-password");
+    // Try to get user from cache first
+    const cacheKey = generateUserKey(decoded.id);
+    let user = await cacheService.get(cacheKey);
 
-    if (!req.user) {
+    if (!user) {
+      // Cache miss - fetch from database
+      user = await User.findById(decoded.id).select("-password");
+
+      if (user) {
+        // Store in cache for future requests
+        await cacheService.set(cacheKey, user.toObject(), TTL.USER_PROFILE);
+      }
+    }
+
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: "User not found",
       });
     }
 
+    req.user = user;
     next();
   } catch (error) {
     return res.status(401).json({
@@ -72,15 +87,29 @@ const protectStream = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select("-password");
 
-    if (!req.user) {
+    // Try to get user from cache first
+    const cacheKey = generateUserKey(decoded.id);
+    let user = await cacheService.get(cacheKey);
+
+    if (!user) {
+      // Cache miss - fetch from database
+      user = await User.findById(decoded.id).select("-password");
+
+      if (user) {
+        // Store in cache for future requests
+        await cacheService.set(cacheKey, user.toObject(), TTL.USER_PROFILE);
+      }
+    }
+
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: "User not found",
       });
     }
 
+    req.user = user;
     next();
   } catch (error) {
     return res.status(401).json({

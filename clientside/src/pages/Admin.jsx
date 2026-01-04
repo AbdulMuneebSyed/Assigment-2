@@ -22,10 +22,6 @@ const Admin = () => {
   const [roleFilter, setRoleFilter] = useState("");
   const [editingRole, setEditingRole] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
   const fetchData = useCallback(async () => {
     try {
       const [usersRes, statsRes] = await Promise.all([
@@ -40,6 +36,10 @@ const Admin = () => {
       setLoading(false);
     }
   }, [search, roleFilter]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleRoleChange = async (userId, newRole) => {
     try {

@@ -32,7 +32,8 @@ const VideoCard = ({ video, onDelete, onReprocess, showActions = true }) => {
   const live = useMemo(() => processingVideos?.[_id], [processingVideos, _id]);
 
   const effectiveProcessingStatus = useMemo(() => {
-    if (!live) return processingStatus;
+    console.log("live data:", live, processingStatus);
+    if (!live) return "completed";
     if (live.state === "pending") return "pending";
     if (live.state === "processing") return "processing";
     if (live.state === "error") return "failed";

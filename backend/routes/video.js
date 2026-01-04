@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
-const { v4: uuidv4 } = require("uuid");
 const { protect, protectStream, authorize } = require("../middleware/auth");
 const {
   uploadVideo,
@@ -15,15 +14,8 @@ const {
 } = require("../controllers/videoController");
 
 // Multer configuration for video uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../uploads"));
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  },
-});
+// Using memory storage for S3 upload (files stored in buffer, not disk)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   // Accept video files only
