@@ -160,11 +160,8 @@ const Library = () => {
 
       {/* Search and Filters */}
       <div className="card-brutal mb-6">
-        <form
-          onSubmit={handleSearch}
-          className="flex flex-col md:flex-row gap-4"
-        >
-          <div className="flex-1">
+        <form onSubmit={handleSearch} className="flex flex-col gap-4">
+          <div className="w-full">
             <div className="relative">
               <Search
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
@@ -182,14 +179,14 @@ const Library = () => {
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <select
               value={filters.category}
               onChange={(e) => {
                 setFilters({ ...filters, category: e.target.value });
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
-              className="select-brutal w-40"
+              className="select-brutal w-full sm:w-40"
             >
               <option value="">All Categories</option>
               <option value="education">Education</option>
@@ -205,7 +202,7 @@ const Library = () => {
                 const [sortBy, sortOrder] = e.target.value.split("-");
                 setFilters({ ...filters, sortBy, sortOrder });
               }}
-              className="select-brutal w-44"
+              className="select-brutal w-full sm:w-44"
             >
               <option value="createdAt-desc">Newest First</option>
               <option value="createdAt-asc">Oldest First</option>
