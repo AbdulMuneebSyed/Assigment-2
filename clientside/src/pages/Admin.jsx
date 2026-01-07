@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { adminAPI } from "../services/api";
 import Layout from "../components/Layout";
+import { AdminPageSkeleton } from "../components/Skeleton";
 import {
   Users,
   Film,
   HardDrive,
   Shield,
-  Loader,
   Search,
   ChevronDown,
   Check,
@@ -98,12 +98,7 @@ const Admin = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="card-brutal flex items-center gap-4">
-            <Loader className="animate-spin" size={24} />
-            <span className="font-bold uppercase">Loading Admin Panel...</span>
-          </div>
-        </div>
+        <AdminPageSkeleton />
       </Layout>
     );
   }

@@ -10,11 +10,12 @@ import {
   Trash2,
   RefreshCw,
   Film,
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useSocket } from "../context/SocketContext";
 
-const VideoCard = ({ video, onDelete, onReprocess, showActions = true }) => {
+const VideoCard = ({ video, onDelete, onReprocess, showActions = true, currentUserId, isAdmin = false }) => {
   const { processingVideos } = useSocket();
   const {
     _id,
@@ -27,7 +28,12 @@ const VideoCard = ({ video, onDelete, onReprocess, showActions = true }) => {
     createdAt,
     formattedSize,
     formattedDuration,
+    owner,
   } = video;
+
+  // Display "Me" for current user's videos, otherwise show uploader name
+  // owner._id comes from MongoDB populated field, currentUserId from auth context
+  const uploaderName = owner?._id?.toString() === currentUserId?.toString() ? "Me" : owner?.name;
 
   const live = useMemo(() => processingVideos?.[_id], [processingVideos, _id]);
 
@@ -157,6 +163,16 @@ const VideoCard = ({ video, onDelete, onReprocess, showActions = true }) => {
         <h3 className="font-bold text-lg truncate mb-2" title={title}>
           {title}
         </h3>
+
+        {/* Uploader name - only shown to admins */}
+        {isAdmin && uploaderName && (
+          <div className="flex items-center gap-1 text-sm text-gray-600 mb-2">
+            <User size={14} />
+            <span className={uploaderName === "Me" ? "font-semibold text-brutal-blue" : ""}>
+              {uploaderName}
+            </span>
+          </div>
+        )}
 
         <p className="text-sm text-gray-500 truncate mb-3" title={originalName}>
           {originalName}

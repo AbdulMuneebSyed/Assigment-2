@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { videosAPI } from "../services/api";
 import Layout from "../components/Layout";
 import VideoCard from "../components/VideoCard";
+import { DashboardPageSkeleton } from "../components/Skeleton";
 import {
   Film,
   Upload,
@@ -89,12 +90,7 @@ const Dashboard = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="card-brutal flex items-center gap-4">
-            <Loader className="animate-spin" size={24} />
-            <span className="font-bold uppercase">Loading Dashboard...</span>
-          </div>
-        </div>
+        <DashboardPageSkeleton />
       </Layout>
     );
   }

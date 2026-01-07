@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { videosAPI } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import Layout from "../components/Layout";
 import VideoCard from "../components/VideoCard";
+import { VideoGridSkeleton, TabsSkeleton } from "../components/Skeleton";
 import {
   Search,
-  Filter,
   Film,
-  Loader,
   ChevronLeft,
   ChevronRight,
   Upload,
@@ -15,6 +15,7 @@ import {
 import { Link } from "react-router-dom";
 
 const Library = () => {
+  const { user, isAdmin } = useAuth();
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -52,6 +53,8 @@ const Library = () => {
         params.sensitivityStatus = "flagged";
       } else if (activeTab === "processing") {
         params.status = "processing";
+      } else if (activeTab === "mine" && user?.id) {
+        params.owner = user.id;
       }
 
       const response = await videosAPI.getAll(params);
@@ -63,7 +66,7 @@ const Library = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, filters, activeTab]);
+  }, [pagination.page, pagination.limit, filters, activeTab, user?.id]);
 
   useEffect(() => {
     fetchVideos();
@@ -109,6 +112,7 @@ const Library = () => {
 
   const tabs = [
     { id: "all", label: "All Videos", count: stats?.totalVideos },
+    ...(isAdmin ? [{ id: "mine", label: "My Videos" }] : []),
     { id: "safe", label: "Safe", count: stats?.safeVideos },
     { id: "flagged", label: "Flagged", count: stats?.flaggedVideos },
     { id: "processing", label: "Processing", count: stats?.processingVideos },
@@ -217,12 +221,7 @@ const Library = () => {
 
       {/* Videos Grid */}
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="card-brutal flex items-center gap-4">
-            <Loader className="animate-spin" size={24} />
-            <span className="font-bold uppercase">Loading Videos...</span>
-          </div>
-        </div>
+        <VideoGridSkeleton count={pagination.limit} />
       ) : videos.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -232,6 +231,8 @@ const Library = () => {
                 video={video}
                 onDelete={handleDelete}
                 onReprocess={handleReprocess}
+                currentUserId={user?.id}
+                isAdmin={isAdmin}
               />
             ))}
           </div>
